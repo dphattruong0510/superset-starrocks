@@ -1,0 +1,54 @@
+services:
+  starrocks:
+    image: starrocks/allin1-ubuntu:latest
+    container_name: starrocks
+    restart: unless-stopped
+    ports:
+      - "9030:9030"
+      - "8030:8030"
+      - "8040:8040"
+    volumes:
+    # Lưu trữ metadata của Frontend (quản lý cluster, table schema)
+      - ./starrocks_data/fe_meta:/data/deploy/starrocks/fe/meta
+      # Lưu trữ dữ liệu thực tế của Backend (storage)
+      - ./starrocks_data/be_storage:/data/deploy/starrocks/be/storage
+      # (Tùy chọn) Lưu trữ log nếu bạn muốn debug
+      - ./starrocks_data/log:/data/deploy/starrocks/fe/log
+
+  superset:
+    build:
+      context: .
+      dockerfile: superset/Dockerfile
+    container_name: superset_customization
+    restart: always
+    depends_on:
+      - metadata_db
+    env_file:
+      - superset/.env
+    ports:
+      - "8088:8088"
+    volumes:
+      # Mount the Directory for Instant Changes
+      - ./superset/superset_config.py:/app/superset_config.py
+      - ./superset/src/img:/app/superset/static/assets/images/custom_logos
+
+  metadata_db:
+    image: postgres:16.6
+    container_name: superset_metadata
+    restart: always
+    env_file:
+      - metadata/.env
+    ports:
+      - "5433:5432"
+    volumes:
+      - metadata_pgdata_snow:/var/lib/postgresql/data
+
+  redis:
+      image: redis:7
+      container_name: superset_cache
+      restart: always
+      volumes:
+        - redis_data:/data
+volumes:
+  metadata_pgdata_snow:
+  redis_data:
